@@ -1,5 +1,3 @@
-# i want this to import and use the people.py functions 
-# i want this to be strictly for displaying the data and interacting with the database but mostly focused on displaying the data and functionality with the people.py functionsfrom people import PeopleManager
 from people import PeopleManager, Person
 import people
 import re
@@ -44,42 +42,53 @@ def add_person(manager):
     favorite_foods = input("Enter favorite foods (comma-separated): ").split(',') if input else ["N/A"]
 
     # Create a Person instance and add it to the database
-    person = Person(first_name, last_name, address, phone_number, email, notes, job_title, company, skills, education, favorite_color, birthday, favorite_foods)
+    person = Person(id, first_name, last_name, address, phone_number, email, notes, job_title, company, skills, education, favorite_color, birthday, favorite_foods)
     manager.add_person(person)
 
 def edit_person(manager):
-    # Get person first name from user input
-    person_first_name = input("Enter the first name of the person to edit: ")
+    person_name = input("Enter the name of the person to edit: ")
+    people = manager.search_person_by_first_name(person_name)
 
-    # Search for the person in the database
-    people = manager.search_person_by_first_name(person_first_name)
-
-    if len(people) > 1:
-        # If multiple people are found, confirm the last name
-        person_last_name = input("Multiple people found. Enter the last name: ")
-        people = [person for person in people if person.last_name == person_last_name]
-
-    if len(people) == 1:
-        # If only one person is found, confirm if that's the person to update
-        person = people[0]
-        print(f"Person found: {person.first_name} {person.last_name}")
-        confirm = input("Is this the person you want to update? (yes/no): ")
-        if confirm.lower() == 'yes':
-            # Ask which field to update
-            field = input("Which field would you like to update? ")
-            new_value = input(f"Enter new value for {field}: ")
-            manager.edit_person_field(person.id, field, new_value)
-        else:
-            print("Operation cancelled.")
-    else:
+    if not people:
         print("No person found.")
+        return
 
+    person = people[0]
+
+    fields = ['first_name', 'last_name', 'address', 'phone_number', 'email', 'notes', 'job_title', 'company', 'skills', 'education', 'favorite_color', 'birthday', 'favorite_foods']  # Add all valid column names here
+
+    print("Which field would you like to update?")
+    for i, field in enumerate(fields, start=1):
+        print(f"{i}. {field}")
+
+    field_number = int(input("Enter the number of the field: "))
+    if 1 <= field_number <= len(fields):
+        field = fields[field_number - 1]
+    else:
+        print("Invalid selection")
+        return
+
+    new_value = input(f"Enter the new value for {field}: ")
+    manager.edit_person_field(person[0], field, new_value)  # Assuming person[0] is the id
 def delete_person(manager):
     # Get person name from user input
     person_name = input("Enter the name of the person to delete: ")
 
-    # Delete the person from the database
-    manager.delete_person(person_name)
+    # Search for the person in the database
+    people = manager.search_person_by_first_name(person_name)
+
+    if not people:
+        print("No person found.")
+        return
+
+    person = people[0]
+
+    # Confirm deletion
+    confirm = input(f"Are you sure you want to delete {person[0]} {person[1]}? (yes/no): ")  # Changed this line
+    if confirm.lower() in ['yes','y']:
+        # Delete the person from the database
+        manager.delete_person(person[0])  # Changed this line
+        print("Person deleted successfully.")
 
 def view_all_people(manager, page=1):
     # Get all people from the database
@@ -90,12 +99,12 @@ def view_all_people(manager, page=1):
     end = start + 10
 
     # Create a table
-    table = PrettyTable(['First Name', 'Last Name', 'Notes', 'Phone Number', 'favorite_color'])
+    table = PrettyTable(['First Name', 'Last Name', 'Phone Number', 'Notes'])
 
     # Add people to the table
     for person_data in people[start:end]:
         person = Person(*person_data)
-        table.add_row([person.first_name, person.last_name, person.notes, person.phone_number, person.favorite_color])
+        table.add_row([person.first_name, person.last_name, person.phone_number, person.notes])
 
     # Print the table
     print(table)
@@ -135,24 +144,35 @@ def search_person(manager):
 
         # Ask the user if they want to interact with this person
         interact = input("Do you want to interact with this person? (yes/no): ")
-        if interact.lower() == 'yes':
+        if interact.lower() in ['yes','y']:
             while True:
                 # Display a menu of options
                 print("1. Update person")
                 print("2. Delete person")
                 print("3. Go back")
                 option = input("Choose an option: ")
-
                 if option == '1':
                     # Update person
-                    field_to_update = input("Enter the field you want to update: ")
-                    new_value = input("Enter the new value: ")
-                    manager.update_person(person.first_name, {field_to_update: new_value})
+                    fields = ['first_name', 'last_name', 'address', 'phone_number', 'email', 'notes', 'job_title', 'company', 'skills', 'education', 'favorite_color', 'birthday', 'favorite_foods']  # Add all valid column names here
+
+                    print("Which field would you like to update?")
+                    for i, field in enumerate(fields, start=1):
+                        print(f"{i}. {field}")
+
+                    field_number = int(input("Enter the number of the field: "))
+                    if 1 <= field_number <= len(fields):
+                        field_to_update = fields[field_number - 1]
+                    else:
+                        print("Invalid selection")
+                        return
+
+                    new_value = input(f"Enter the new value for {field_to_update}: ")
+                    manager.edit_person_field(person.id, field_to_update, new_value)  # Changed this line
                     print("Person updated successfully.")
                 elif option == '2':
                     # Delete person
                     confirm = input("Are you sure you want to delete this person? (yes/no): ")
-                    if confirm.lower() == 'yes':
+                    if confirm.lower() in ['yes','y']:
                         manager.delete_person(person.first_name)
                         print("Person deleted successfully.")
                         break
@@ -169,20 +189,17 @@ def main():
     while True:
         # Print ASCII art and menu
         print("""
-        _______________________
-        |  _________________  |
-        | | Pythonista      | |
-        | |_________________| |________________
-        |  ___ ___ ___   ___   ______________  |
-        | | 7 | 8 | 9 | | + | |              | |
-        | |___|___|___| |___| |              | |
-        | | 4 | 5 | 6 | | - | |              | |
-        | |___|___|___| |___| |              | |
-        | | 1 | 2 | 3 | | x | |              | |
-        | |___|___|___| |___| |______________| |
-        | | . | 0 | = | | / |  _____________  |
-        | |___|___|___| |___| |_____________| |
-        |_____________________|
+              ,---------------------------,
+              |  /---------------------\  |
+              | |                       | |
+              | |  <USER>               | |
+              | |  |     Personnel      | |
+              | |  |_       Manager     | |
+              | |                       | |
+              |  \_____________________/  |
+              |___________________________|
+                \_____     []     _______/
+                    /______________\       
 
         1. Add a person
         2. Edit a person

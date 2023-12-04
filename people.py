@@ -15,7 +15,8 @@ import re
 from datetime import datetime
 
 class Person:
-    def __init__(self, first_name, last_name, address, phone_number, email, notes, job_title, company, skills, education, favorite_color, birthday, favorite_foods):
+    def __init__(self, id, first_name, last_name, address, phone_number, email, notes, job_title, company, skills, education, favorite_color, birthday, favorite_foods):
+        self.id = id
         self.first_name = first_name
         self.last_name = last_name
         self.address = address
@@ -62,27 +63,6 @@ class PeopleManager:
         cursor = self.db_connection.cursor()
         cursor.execute("CREATE DATABASE IF NOT EXISTS people_db")
 
-    def create_table_if_not_exists(self):
-        cursor = self.db_connection.cursor()
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS people (
-                first_name VARCHAR(255),
-                last_name VARCHAR(255),
-                address VARCHAR(255),
-                phone_number VARCHAR(255),
-                email VARCHAR(255),
-                notes TEXT,
-                job_title VARCHAR(255),
-                company VARCHAR(255),
-                skills TEXT,
-                education TEXT,
-                favorite_color VARCHAR(255),
-                birthday DATE,
-                favorite_foods TEXT
-            )
-        """)
-        cursor.close()
-
     def add_person(self, person):
         # Validate the person before adding
         self.validate_person(person)
@@ -104,8 +84,7 @@ class PeopleManager:
             'favorite_foods': str(person.favorite_foods) or "N/A"
         }
         placeholders = ', '.join(['?'] * len(person_data))
-        columns = ', '.join(person_data.keys())
-        sql = "INSERT INTO people (%s) VALUES (%s)" % (columns, placeholders)
+        sql = f"INSERT INTO people ({', '.join(person_data.keys())}) VALUES ({placeholders})"
         cursor.execute(sql, list(person_data.values()))
         self.db_connection.commit()
         cursor.close()
@@ -114,12 +93,45 @@ class PeopleManager:
         if not person.first_name or not person.last_name:
             raise ValueError("First name and last name are required.")
 
-    def delete_person(self, person_name):
+    def search_person_by_first_name(self, first_name):
         cursor = self.db_connection.cursor()
-        sql = "DELETE FROM people WHERE first_name = ?"
-        cursor.execute(sql, (person_name,))
+        sql = "SELECT * FROM people WHERE LOWER(first_name) = LOWER(?)"
+        cursor.execute(sql, (first_name,))
+        results = cursor.fetchall()
+        cursor.close()
+        return results if results else []
+
+    def delete_person(self, person_id):
+        cursor = self.db_connection.cursor()
+        sql = "DELETE FROM people WHERE id = ?"
+        cursor.execute(sql, (person_id,))
         self.db_connection.commit()
         cursor.close()
+
+    def edit_person_field(self, person_id, field, new_value):
+        cursor = self.db_connection.cursor()
+        sql = f"UPDATE people SET {field} = ? WHERE id = ?"
+        cursor.execute(sql, (new_value, person_id))
+        self.db_connection.commit()
+        cursor.close()
+
+    def search_people(self, search_term):
+        cursor = self.db_connection.cursor()
+        fields = ['first_name', 'last_name', 'address', 'phone_number', 'email', 'notes', 'job_title', 'company', 'skills', 'education', 'favorite_color', 'birthday', 'favorite_foods']
+        sql = "SELECT * FROM people WHERE " + " OR ".join(f"{field} LIKE ?" for field in fields)
+        cursor.execute(sql, ['%' + search_term + '%'] * len(fields))
+        results = cursor.fetchall()
+        return [tuple(result) for result in results]
+
+    def list_all_people(self):
+        cursor = self.db_connection.cursor()
+        cursor.execute("SELECT * FROM people")
+        return cursor.fetchall()
+
+    def sort_people(self, sort_field):
+        cursor = self.db_connection.cursor()
+        cursor.execute(f"SELECT * FROM people ORDER BY {sort_field}")
+        return cursor.fetchall()
 
     def update_person(self, person_name, updated_data):
         cursor = self.db_connection.cursor()

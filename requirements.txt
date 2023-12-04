@@ -1,2 +1,1 @@
 prettytable==2.2.0
-sqlite3==2.6.0
